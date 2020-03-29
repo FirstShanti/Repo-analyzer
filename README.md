@@ -41,7 +41,7 @@ Create virtual environment:
 
 Activate environment:
 
-` source ./environment/bin/activate `
+` source ./name_of_your_environment/bin/activate `
 
 Install python packages from requirements:
 
