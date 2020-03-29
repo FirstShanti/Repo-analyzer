@@ -1,6 +1,7 @@
 # Repo-analyzer
-Python script for geting information about activity of repository with query period and branch. Analysis results output to stdout.
+Python script for geting information about activity of Public Github repository with query period and branch. Analysis results output to stdout.
 # Features:
+- Python 3.7.0
 - Requests
 - Github API v3
 # Description:
