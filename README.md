@@ -54,6 +54,10 @@ Get access token at https://github.com/settings/tokens and put it in variable ` 
 
 # All is done
 
+You can try a simple query without any options:
+
+` python start.py https://github.com/FirstShanti/Repo-analyzer/ `
+
 In order to familiarize yourself with the script commands and instructions, run file:
 
 ` python start.py `
