@@ -21,8 +21,8 @@ def print_commit(commiters, len_name):
 	if commiters:
 		commiters = {k: v for k, v in sorted(commiters.items(), key=lambda item: item[1], reverse=True)}
 		count = 30
-		sys.stdout.write('\033[2K\033[1G')
-		print('\nCOMMITS: ', sum([v for v in commiters.values()]))
+		sys.stdout.write('\r\033[2K\033[1G')
+		print('\rCOMMITS: ', sum([v for v in commiters.values()]))
 		for login, commits in commiters.items():
 			print(f'{login}:{" "*int(max_len-len(login))} {commits}')
 			count -= 1
@@ -42,7 +42,7 @@ def add_commiters(commit, commiters):
 			login = commit['author']['login']
 	except TypeError:
 		login = commit['commit']['author']['name']
-	
+
 	if login not in commiters:
 		commiters[login] = 1
 		next(loading)
@@ -55,17 +55,17 @@ def add_commiters(commit, commiters):
 
 
 def add_pulls(j, pulls):
-	if datetime.fromisoformat(j['created_at'][:-1:]) >= query.params.start_date\
-	  and datetime.fromisoformat(j['created_at'][:-1:]) <= query.params.end_date:
-		if (query.params.end_date - datetime.fromisoformat(j['created_at'][:-1:])).days >= 30 and j['state'] == 'open':
-			pulls['open']['old'] += 1
-			next(loading)
-		elif j['state'] == 'closed':
-			pulls['closed'] += 1
-			next(loading)
-		else:
-			pulls['open']['new'] += 1
-			next(loading)
+#	if datetime.fromisoformat(j['created_at'][:-1:]) >= query.params.start_date\
+#	  and datetime.fromisoformat(j['created_at'][:-1:]) <= query.params.end_date:
+	if (query.params.end_date - datetime.fromisoformat(j['created_at'][:-1:])).days >= 30 and j['state'] == 'open':
+		pulls['open']['old'] += 1
+		next(loading)
+	elif j['state'] == 'closed':
+		pulls['closed'] += 1
+		next(loading)
+	else:
+		pulls['open']['new'] += 1
+		next(loading)
 	return pulls
 
 
@@ -87,22 +87,23 @@ def get_commiters(query):
 	else:
 		print('\nNo commits\n')
 
-	sys.stdout.write('\033[2K\033[1G')
+	#sys.stdout.write('\r\033[2K\033[1G')
 	print_commit(commiters, len_name)
 
 	return
-				
+
 
 def get_pulls(query):
 	pulls = {'open':{'old': 0, 'new': 0}, 'closed': 0}
 	res = query.request_pulls
-		
+
 	if res.links:
 		last_pull_number_on_49_page = int(requests.get(res.links['last']['url'], headers=query.headers_pulls).json()[-1]['url'].split('/')[-1])
 		for i in range(1, int(res.links['last']['url'].split('=')[-1])+1):
 			next(loading)
 			res = requests.get(f'{query.url_repo_pulls}?state=all&base={query.params.branch}&page={i}', headers=query.headers)
 			if datetime.fromisoformat(res.json()[-1]['created_at'][:-1:]) > query.params.end_date:
+				next(loading)
 				continue
 			elif datetime.fromisoformat(res.json()[0]['created_at'][:-1:]) < query.params.start_date:
 				break
@@ -116,6 +117,7 @@ def get_pulls(query):
 				res_ = requests.get(f'{query.url_repo_pulls}/{i}', headers=query.headers)
 				if res_.json():
 					if datetime.fromisoformat(res_.json()['created_at'][:-1:]) > query.params.end_date:
+						next(loading)
 						continue
 					elif datetime.fromisoformat(res_.json()['created_at'][:-1:]) < query.params.start_date:
 						break
@@ -131,8 +133,8 @@ def get_pulls(query):
 		print('\nNo pulls\n')
 		return
 
-	sys.stdout.write('\033[2K\033[1G')
-	sys.stdout.write(f"PULLS\nOpen:   {pulls['open']['old'] + pulls['open']['new']}\
+	sys.stdout.write('\r\033[2K\033[1G')
+	print(f"\rPULLS     \nOpen:   {pulls['open']['old'] + pulls['open']['new']}\
 		\nClosed: {pulls['closed']}\
 		\nOld:    {pulls['open']['old']}\n"
 	)
@@ -171,8 +173,8 @@ def get_issues(query):
 								else:
 									issues['open']['new'] += 1
 						next(loading)
-	sys.stdout.write('\033[2K\033[1G')
-	sys.stdout.write(f"\nISSUES\nOpen:   {issues['open']['old'] + issues['open']['new']}\
+	sys.stdout.write('\r\033[2K\033[1G')
+	sys.stdout.write(f"\rISSUES    \nOpen:   {issues['open']['old'] + issues['open']['new']}\
 		\nClosed: {issues['closed']}\
 		\nOld:    {issues['open']['old']}\n\n"
 	)
@@ -192,4 +194,3 @@ if __name__ == ("__main__"):
 			print(man)
 	else:
 		print(man_no_auth)
-	
