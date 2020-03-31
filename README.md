@@ -9,8 +9,7 @@ Python script for geting information about activity of Public Github repository 
 - Commits (
 The most active participants. A table of 2 columns: author login, number of it
 commits. The table is sorted by the number of commits in descending order. Not
-more than 30 lines. Analysis of time for the posterior period of time and the posterior period
-branch.):
+more than 30 lines. The analysis is carried out for a given period of time and branch.):
     - `username:` `count`
     
 - Pull Requests (The number of open, closed and old* pull requests for a given period of time PR creation date and the specified branch, which is the base for this PR):
