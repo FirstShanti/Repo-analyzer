@@ -28,5 +28,5 @@ url    : Url of public github repository,
 man_no_auth = '''
 For authorization, go to config.py file and put you personal access <token> (https://github.com/settings/tokens) variable "TOKEN"
 
-$nano ./config.py
+>nano ./config.py
 '''

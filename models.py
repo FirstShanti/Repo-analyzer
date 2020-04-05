@@ -116,22 +116,6 @@ class Params(User):
             self.payload['since'] = res.json()['created_at']
 
 
-    # def requests_log(self):
-    #     try:
-    #         with open('requests_count.txt') as json_file:
-    #             data = json.load(json_file)
-    #             data['last'] = datetime.fromisoformat(data['last'])
-    #         if (datetime.now() - data['last']).seconds / 60 > 60:
-    #             data['count'] = 0
-    #             data['last'] = datetime.now()
-    #         self.requests_log = data
-    #     except FileNotFoundError:
-    #         self.requests_log = {'count':0, 'last':f"{datetime.now()}"}
-    #         with open('requests_count.txt', 'w') as f:
-    #             json.dump(self.requests_log, f)
-    #     return self.requests_log
-
-
 class Query(User):
     def __init__(self, params, *args, **kwargs):
         super(Query, self).__init__(*args, **kwargs)

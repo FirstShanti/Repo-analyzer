@@ -199,7 +199,6 @@ async def main():
 if __name__ == ("__main__"):
 	t0 = time()
 	asyncio.run(main())
-	print('Total time:   ', round(time()-t0, 2)
-		, 'sec')
+	print('Total time:   ', round(time()-t0, 2), 'sec')
 	print(f'Total request: {requests}\nRequests limit update after: {reset}')
 

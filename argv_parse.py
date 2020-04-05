@@ -34,6 +34,5 @@ def get_params():
 		required=False,
 		help='branch'
 	)
-
 	args = vars(parser.parse_args())
 	return args
