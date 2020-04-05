@@ -58,6 +58,6 @@ You can try a simple query without any options:
 
 ` python start.py https://github.com/FirstShanti/Repo-analyzer `
 
-In order to familiarize yourself with the script commands and instructions, run file:
+In order to familiarize yourself with the script commands and instructions run with ` -h `:
 
 ` python start.py -h `
