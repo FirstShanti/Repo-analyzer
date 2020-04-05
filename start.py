@@ -1,15 +1,60 @@
-from datetime import datetime
-import requests
-import time
 import sys
-from models import User, Params, Query
-from argv_parse import get_params
-from loading import loading
+import asyncio
+import aiohttp
+import requests
+import json
+from datetime import datetime
+from time import time
 from man import *
+from models import User, Params, Query
+from loading import loading
 
 
+start = time()
 loading = loading()
 len_name = set()
+#requests = 0
+reset = datetime.now()
+
+user = User()
+if user.authorized:
+	params = Params()
+	params.validation()
+	query = Query(params)
+	print(f"Start from: {params.start_date}\nTo: {params.end_date}\nbranch: {params.branch}\n")
+else:
+	print(man_no_auth)
+	exit()
+
+
+# convert string created time to <datetime> whithout 'Z'
+def date_format(j):
+	return datetime.fromisoformat(j['created_at'][:-1:])
+
+
+async def fetch(session, url, params={}):
+	global requests
+	global reset
+	async with session.get(url, params=params) as response:
+		try:
+			if response.status == 200 and int(response.headers['X-RateLimit-Remaining']) < 5000:
+				try:
+					pages = int(str(response.links['last']['url']).split('=')[-1])
+				except KeyError:
+					pages = 1
+				requests = 5000 - int(response.headers['X-RateLimit-Remaining'])
+				reset = datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"])).isoformat(timespec="seconds")
+				res = await response.json()
+				return (res, pages)
+			else:
+				sys.stdout.write('\r\033[2K\033[1G')
+				print(f'Error: {response.status}\
+					\nUrl: {response.url}\
+					\nAvailable queries: {response.headers["X-RateLimit-Remaining"]}\
+					\nLimit reset at: {reset}')
+				exit()
+		except Exception as e:
+			raise e
 
 
 def print_commit(commiters, len_name):
@@ -28,10 +73,8 @@ def print_commit(commiters, len_name):
 			count -= 1
 			if count <= 0:
 				break
-				return
 		print('\n')
-	else:
-		print('\nNo commits\n')
+	return
 
 
 def add_commiters(commit, commiters):
@@ -50,14 +93,11 @@ def add_commiters(commit, commiters):
 		commiters[login] += 1
 		next(loading)
 	len_name.add(len(login))
-
 	return commiters
 
 
 def add_pulls(j, pulls):
-#	if datetime.fromisoformat(j['created_at'][:-1:]) >= query.params.start_date\
-#	  and datetime.fromisoformat(j['created_at'][:-1:]) <= query.params.end_date:
-	if (query.params.end_date - datetime.fromisoformat(j['created_at'][:-1:])).days >= 30 and j['state'] == 'open':
+	if (params.end_date - date_format(j)).days >= 30 and j['state'] == 'open':
 		pulls['open']['old'] += 1
 		next(loading)
 	elif j['state'] == 'closed':
@@ -69,69 +109,40 @@ def add_pulls(j, pulls):
 	return pulls
 
 
-def get_commiters(query):
+async def get_commiters(session):
+
 	commiters = {}
-	res = query.request_commits
+	res, pages = await fetch(session, query.url_repo_commits, params=params.payload)
 
-	if res.links:
-		for i in range(1, int(res.links['last']['url'].split('=')[-1])+1):
+	for i in range(1, pages+1):
+		query.payload.update({'page':f'{i}'})
+		next(loading)
+		res_, _ = await fetch(session, query.url_repo_commits, params=params.payload)
+		for j in res_:
 			next(loading)
-			res_ = requests.get(url=f"{res.url}&page={i}", headers=query.headers)
-			for j in res_.json():
-				next(loading)
-				commiters.update(add_commiters(j, commiters))
-	elif not res.links:
-		for i in res.json():
-			next(loading)
-			commiters.update(add_commiters(i, commiters))
-	else:
-		print('\nNo commits\n')
+			commiters.update(add_commiters(j, commiters))
 
-	#sys.stdout.write('\r\033[2K\033[1G')
 	print_commit(commiters, len_name)
-
 	return
 
 
-def get_pulls(query):
+async def get_pulls(session):
 	pulls = {'open':{'old': 0, 'new': 0}, 'closed': 0}
-	res = query.request_pulls
+	res, pages = await fetch(session, query.url_repo_pulls, params={'state':'all', 'base':params.branch})
 
-	if res.links:
-		last_pull_number_on_49_page = int(requests.get(res.links['last']['url'], headers=query.headers_pulls).json()[-1]['url'].split('/')[-1])
-		for i in range(1, int(res.links['last']['url'].split('=')[-1])+1):
+	for i in range(1, pages+1):
+		next(loading)
+		res_, _ = await fetch(session, f'{query.url_repo_pulls}?state=all&base={params.branch}&page={i}')
+		if pages>2 and datetime.fromisoformat(res_[-1]['created_at'][:-1:]) > params.end_date:
 			next(loading)
-			res = requests.get(f'{query.url_repo_pulls}?state=all&base={query.params.branch}&page={i}', headers=query.headers)
-			if datetime.fromisoformat(res.json()[-1]['created_at'][:-1:]) > query.params.end_date:
-				next(loading)
-				continue
-			elif datetime.fromisoformat(res.json()[0]['created_at'][:-1:]) < query.params.start_date:
-				break
-			else:
-				for j in res.json():
+			continue
+		elif pages>2 and datetime.fromisoformat(res_[0]['created_at'][:-1:]) < params.start_date:
+			break
+		else:
+			for j in res_:
+				if date_format(j) <= params.end_date and date_format(j) >= params.start_date:
 					next(loading)
 					pulls.update(add_pulls(j, pulls))
-		if last_pull_number_on_49_page >= 1:
-			for i in range(last_pull_number_on_49_page, 1):
-				next(loading)
-				res_ = requests.get(f'{query.url_repo_pulls}/{i}', headers=query.headers)
-				if res_.json():
-					if datetime.fromisoformat(res_.json()['created_at'][:-1:]) > query.params.end_date:
-						next(loading)
-						continue
-					elif datetime.fromisoformat(res_.json()['created_at'][:-1:]) < query.params.start_date:
-						break
-					else:
-						for j in res_.json():
-							next(loading)
-							pulls.update(add_pulls(j, pulls))
-	elif not res.links:
-		for j in res.json():
-			next(loading)
-			pulls.update(add_pulls(j, pulls))
-	else:
-		print('\nNo pulls\n')
-		return
 
 	sys.stdout.write('\r\033[2K\033[1G')
 	print(f"\rPULLS     \nOpen:   {pulls['open']['old'] + pulls['open']['new']}\
@@ -141,38 +152,32 @@ def get_pulls(query):
 	return
 
 
-def get_issues(query):
+async def get_issues(session):
 	issues = {'open':{'old': 0, 'new': 0}, 'closed': 0}
-	pages = 0
-	res = query.request_issues
+	res, pages = await fetch(session, query.url_repo_issues, params={'filter':'all', 'state':'all', 'since':params.payload['since']})
 
-	if res.json():
-		pages = int((int(res.json()[0]['html_url'].split('/')[-1]) / 30) // 1 + 1)
-
-	if pages >= 1:
-		for i in range(1, pages + 1):
+	for i in range(1, pages + 1):
+		next(loading)
+		res_, _= await fetch(session, query.url_repo_issues, params={'filter':'all', 'state':'all', 'since':params.payload['since'], 'page':str(i)})
+		if pages > 2 and datetime.fromisoformat(res_[-1]['created_at'][:-1:]) > params.end_date:
+			continue
+		elif pages > 2 and datetime.fromisoformat(res_[0]['created_at'][:-1:]) < params.start_date:
+			break
+		for j in res_:
 			next(loading)
-			res = requests.get(f"{query.url_repo_issues}?filter=all&state=all&since={query.params.s_date}&page={i}", headers=query.headers_issues)
-			if res.json() and datetime.fromisoformat(res.json()[-1]['created_at'][:-1:]) > query.params.end_date:
-				continue
-			elif res.json() and datetime.fromisoformat(res.json()[0]['created_at'][:-1:]) < query.params.start_date:
-				break
-			else:
-				if res.json():
-					for j in res.json():
-						next(loading)
-						if datetime.fromisoformat(j['created_at'][:-1:]) >= query.params.start_date\
-							and datetime.fromisoformat(j['created_at'][:-1:]) <= query.params.end_date\
-							and j['html_url'].split('/')[-2] != 'pull':
-							if (query.params.end_date - datetime.fromisoformat(j['created_at'][:-1:])).days >= 14\
-							and j['state'] == 'open':
-								issues['open']['old'] += 1
-							else:
-								if j['state'] == 'closed':
-									issues['closed'] += 1
-								else:
-									issues['open']['new'] += 1
-						next(loading)
+			if date_format(j) >= params.start_date\
+				and date_format(j) <= params.end_date\
+				and j['html_url'].split('/')[-2] != 'pull':
+				if (params.end_date - date_format(j)).days >= 14\
+				and j['state'] == 'open':
+					issues['open']['old'] += 1
+				else:
+					if j['state'] == 'closed':
+						issues['closed'] += 1
+					else:
+						issues['open']['new'] += 1
+			next(loading)
+
 	sys.stdout.write('\r\033[2K\033[1G')
 	sys.stdout.write(f"\rISSUES    \nOpen:   {issues['open']['old'] + issues['open']['new']}\
 		\nClosed: {issues['closed']}\
@@ -181,16 +186,20 @@ def get_issues(query):
 	return
 
 
+async def main():
+	async with aiohttp.ClientSession(headers=user.headers, json_serialize=json.dumps) as session:
+			
+			task1 = asyncio.create_task(get_commiters(session))
+			task2 = asyncio.create_task(get_pulls(session))
+			task3 = asyncio.create_task(get_issues(session))
+			
+			await asyncio.gather(task1, task2, task3)
+			
+
 if __name__ == ("__main__"):
-	user = User()
-	if user.authorized:
-		params = Params()
-		if params.params:
-			query = Query(params)
-			get_commiters(query)
-			get_pulls(query)
-			get_issues(query)
-		else:
-			print(man)
-	else:
-		print(man_no_auth)
+	t0 = time()
+	asyncio.run(main())
+	print('Total time:   ', round(time()-t0, 2)
+		, 'sec')
+	print(f'Total request: {requests}\nRequests limit update after: {reset}')
+

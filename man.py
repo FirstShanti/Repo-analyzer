@@ -1,10 +1,12 @@
-info='''| Github grabber v.1.0           |\
+info='''
+| Github grabber v.2.0           |\
 \n| Author: Vladislav Shevchenko   |\
 \n| https://github.com/FirstShanti | \
 \n| shev.vlad.ua@gmail.com         | \n'''
 
 man = '''
-usage: start.py url [-s [start date]] [-e [end date]] [-b [branch]]
+
+usage: start.py url [-s start date] [-e end date] [-b branch]
 
 example: start.py https://github.com/pallets/flask -s 2020-01-01T12:34:56 -e 2020-03-01 -b 1.1.x
 
@@ -21,10 +23,10 @@ url    : Url of public github repository,
 -b     : Branch of repository
          Not required (The default value is 'master')
 
-
 '''
 
 man_no_auth = '''
-For authorization, go to cofig.py and put you personal access <token> (https://github.com/settings/tokens) and <username> in the corresponding variables "TOKEN" and "USERNAME"
+For authorization, go to config.py file and put you personal access <token> (https://github.com/settings/tokens) variable "TOKEN"
 
-nano ./config.py'''
+$nano ./config.py
+'''
