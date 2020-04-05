@@ -60,4 +60,4 @@ You can try a simple query without any options:
 
 In order to familiarize yourself with the script commands and instructions, run file:
 
-` python start.py `
+` python start.py -h `
