@@ -3,6 +3,7 @@ Python script for geting information about activity of Public Github repository 
 # Features:
 - Python 3.7.0
 - Requests
+- aiohttp
 - Github API v3
 # Description:
 #### Values that script monitoring:
