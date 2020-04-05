@@ -13,8 +13,8 @@ from loading import loading
 start = time()
 loading = loading()
 len_name = set()
-#requests = 0
-reset = datetime.now()
+requests_count = 0
+reset_time = datetime.now()
 
 user = User()
 if user.authorized:
@@ -30,11 +30,11 @@ else:
 # convert string created time to <datetime> whithout 'Z'
 def date_format(j):
 	return datetime.fromisoformat(j['created_at'][:-1:])
-
+	
 
 async def fetch(session, url, params={}):
-	global requests
-	global reset
+	global requests_count
+	global reset_time
 	async with session.get(url, params=params) as response:
 		try:
 			if response.status == 200 and int(response.headers['X-RateLimit-Remaining']) < 5000:
@@ -42,8 +42,8 @@ async def fetch(session, url, params={}):
 					pages = int(str(response.links['last']['url']).split('=')[-1])
 				except KeyError:
 					pages = 1
-				requests = 5000 - int(response.headers['X-RateLimit-Remaining'])
-				reset = datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"])).isoformat(timespec="seconds")
+				requests_count = 5000 - int(response.headers['X-RateLimit-Remaining'])
+				reset_time = datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"])).isoformat(timespec="seconds")
 				res = await response.json()
 				return (res, pages)
 			else:
@@ -200,5 +200,5 @@ if __name__ == ("__main__"):
 	t0 = time()
 	asyncio.run(main())
 	print('Total time:   ', round(time()-t0, 2), 'sec')
-	print(f'Total request: {requests}\nRequests limit update after: {reset}')
+	print(f'Total request: {requests_count}\nRequests limit update after: {reset_time}')
 
